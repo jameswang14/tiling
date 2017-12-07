@@ -1,14 +1,22 @@
 import sys
 import re
-import itertools
 import copy
+import timeit
+import numpy as np
+# todo - convert everything to numpy matricies
+count = 0
 def pretty_print(piece):
     for line in piece:
         print(line)
-    print()
 
 def rotate(piece):
     return [ [i for i in row] for row in zip(*piece[::-1])]
+
+def _deepcopy_matrix(m):
+    return [ [j for j in i] for i in m] 
+
+def _deepcopy_3d(m):
+    return [ [ [k for k in j] for j in i] for i in m]
 
 def _flood(input_matrix, i, j, k, l, points):
     if (
@@ -20,7 +28,6 @@ def _flood(input_matrix, i, j, k, l, points):
     points.append((i, j, input_matrix[i][j]))
     input_matrix[i][j] = ' '
     combinations = [(1,0), (0,1), (-1, 0), (0,-1)]
-
     for t in combinations:
         _flood(input_matrix, i+t[0], j+t[1], k+t[0], l+t[1], points) 
     return points
@@ -33,7 +40,9 @@ def process_input(input_matrix):
             if not re.match(r'\s\s*', input_matrix[i][j]):
                 points = []
                 _flood(input_matrix, i, j, 0, 0, points)
+                piece = _reconstruct_piece(points)
                 pieces.append(_reconstruct_piece(points))
+
     board = max(pieces, key=lambda p: len(p) * len(p[0]))
     pieces.remove(board)
     return pieces, board
@@ -53,34 +62,32 @@ def _reconstruct_piece(points):
 
 def solve(pieces, board):
     curr = [ [' ' for i in range(len(board[j]))] for j in range(len(board))]
+    curr_unique = [ [' ' for i in range(len(board[j]))] for j in range(len(board))]
+    num_pieces = [ i for i in range(len(pieces))]
     solutions = []
-    for i, row in enumerate(curr):
-        for j, char in enumerate(row):
-            for p in pieces:
-                curr_copy = _try_placing(board, curr, p, i,j)
-                print(curr_copy)
-    # _backtrack(board, curr, pieces, solutions)
+    _backtrack(board, curr, curr_unique, pieces, num_pieces, solutions)
     return solutions
 
-def _backtrack(board, curr, pieces, solutions):
+def _backtrack(board, curr, curr_unique, pieces, num_pieces, solutions):
     if _check_complete(board, curr):
-        solutions.add(curr)
+        if curr_unique not in solutions:
+            solutions.append(curr_unique)
         return
-    if len(pieces) == 0:
+    if len(num_pieces) == 0:
         return
     for i, row in enumerate(curr):
         for j, char in enumerate(row):
             if char == ' ' and board[i][j] != ' ': # first empty spot that shouldn't be empty
-                for p in pieces:
-                    curr_copy = _try_placing(board, curr, p, i, j)
-                    print(curr_copy)
-                    if curr_copy:
-                        pieces_copy = copy.deepcopy(pieces)
-                        pieces_copy.remove(p)
-                        print(pieces_copy)
-                        for p in pieces: pretty_print(p)
-                        for p in pieces: pretty_print(pieces_copy)
-                        _backtrack(board, curr_copy, pieces_copy, solutions)
+                for n in num_pieces:
+                    rp = pieces[n]
+                    for x in range(0,4):
+                        rp = rotate(rp)
+                        curr_copy = _try_placing(board, curr, rp, i, j)
+                        if curr_copy:
+                            num_pieces.remove(n)
+                            curr_unique_copy = _place_unique(curr_unique, rp, i, j, n)
+                            _backtrack(board, curr_copy, curr_unique_copy, pieces, num_pieces, solutions)
+                            num_pieces.append(n)
 
 def _check_complete(board, curr):
     for i, row in enumerate(board):
@@ -89,17 +96,30 @@ def _check_complete(board, curr):
                 return False
     return True
 
+def _place_unique(curr_unique, piece, i, j, num):
+    curr_unique_copy = _deepcopy_matrix(curr_unique)
+    for row in piece:
+        for char in row:
+            if char != ' ':
+                curr_unique_copy[i][j] = num
+            j+=1
+        j-=len(row)
+        i+=1
+    return curr_unique_copy
+
 def _try_placing(board, curr, piece, i, j):
-    curr_copy = copy.deepcopy(curr)
+    curr_copy = _deepcopy_matrix(curr)
     for k, row in enumerate(piece):
         for l, char in enumerate(row):
             if (    
                     i >= len(board) or j >= len(board[i]) or 
                     (char != ' ' and curr_copy[i][j] != ' ') or 
                     (char != ' ' and char != board[i][j])
-                ):
+                ): 
                 return None
-            curr[i][j] = piece[k][l]
+            
+            if char != ' ':
+                curr_copy[i][j] = piece[k][l]
             j+=1
         j-=len(row)
         i+=1
@@ -113,6 +133,7 @@ input_matrix = [
 ]
 
 pieces, board = process_input(input_matrix)
-pretty_print(pieces)
-# solutions = solve(pieces, board)
-# print (solutions)
+solutions = solve(pieces, board)
+for sol in solutions: 
+    pretty_print(sol)
+    print()
