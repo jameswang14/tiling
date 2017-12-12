@@ -1,0 +1,136 @@
+<html>
+
+<body>
+    <form id="solve">
+        <select id="files">
+        </select>
+        <input id="rotate" type="checkbox"> Rotate
+        <input id="flip" type="checkbox"> Flip
+        <input id="first" type="checkbox"> Find First Solution
+        <button type="submit"> Solve</button>
+    </form>
+    <div id="status">
+    </div>
+    <canvas id="canvas" width="1000" height="500">
+    </canvas>
+    <div style="">
+        <button id="prev"> Prev
+        </button>
+        <span id="num">
+        </span>
+        <button id="next">Next</button>
+        <div id="time">Time Elapsed: </div>
+        <div id="msg"> </div>
+    </div>
+</div>
+</body>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="/static/randomColor.js"></script>
+<script>
+    $("#status").text("Idle");
+    $("#num").text("0/0");
+    var randomColorMap = {};
+    var index = 0;
+    var solutions = null;
+    var numPieces = 0;
+    $("#prev").click(function (e) {
+        if (index > 0) {
+            index--;
+            drawSolution(solutions[index], numPieces);
+            $("#num").text((index+1) + "/" + solutions.length);
+        }
+    });
+    $("#next").click(function (e) {
+        if (index < solutions.length-1) {
+            index++;
+            drawSolution(solutions[index], numPieces);
+            $("#num").text((index+1) + "/" + solutions.length);
+        }
+    });
+    function clearCanvas() {
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    // draws solution using a bunch of squares
+    function drawSolution(arr, numPieces) {
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var len = 20;
+        var thickness = 1;
+        var x = 0;
+        var y = 0;        
+        clearCanvas();
+        $("#msg").text("");
+        var pieces = new Set();
+        for (var i = 0; i < arr.length; i++) {
+            var row = arr[i];
+            for (var j = 0; j < row.length; j++) {
+                var ele = row[j];
+                if (ele !== " ") {
+                    if (!(ele in randomColorMap)) {
+                        randomColorMap[ele] = randomColor();
+                    }
+                    pieces.add(ele);
+                    ctx.fillStyle = randomColorMap[ele];
+                    ctx.fillRect(x, y, len, len);
+                    ctx.fillStyle='#000';
+                    ctx.strokeRect(x,y,len,len);
+                }   
+                x+=len;
+            }
+            y+=len;
+            x=0;
+        }
+        if (pieces.size < numPieces)
+            $("#msg").text("Not all pieces used");
+    }
+    // load files for dropdown menu
+    $.ajax({url:'/files', success:function(res) {
+            var select = $("#files")
+            $.each(res, function(k,v) {
+                select.append($("<option></option>")
+                    .attr("value", k)
+                    .text(k));
+            });
+        }
+    });
+    // make request to server to solve
+    $("#solve").submit(function(e) {
+        e.preventDefault();
+        $("#status").text("Solving");
+        data = {
+            file: $("#files").val(),
+            rotate: $("#rotate").prop('checked'),
+            flip: $("#flip").prop('checked'),
+            first: $("#first").prop('checked'),
+        }
+        $.ajax({
+            type: "POST",
+            url:'/solve',
+            data: data,
+            success: function(res) {
+                clearCanvas();
+                solutions = res[0];
+                timeToSolve = res[1];
+                numPieces = res[2];
+                if (!solutions) {
+                    $("#num").text("Invalid Input");   
+                } 
+                else if (solutions.length > 0) {
+                    index = 0;
+                    drawSolution(solutions[0], numPieces);
+                    $("#num").text((index+1) + "/" + solutions.length);
+                }
+                else {
+                    $("#num").text("No solutions found");   
+                }
+                $("#status").text("Idle");
+                $("#time").text("Time Elapsed: " + res[1]);                
+            }
+        })
+    });
+</script>
+
+</html>
