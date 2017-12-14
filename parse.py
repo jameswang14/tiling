@@ -163,12 +163,13 @@ def _check_unique_solution(curr_unique, solutions):
 # Recursive backtracking method
 def _backtrack(board, curr, curr_unique, pieces, num_pieces, solutions, symmetries, i, j):
     global rotate_flag, flip_flag
+    # pretty_print(curr_unique)
     if board == curr and _check_unique_solution(curr_unique, solutions):
         solutions.append(curr_unique)
         return
     if len(num_pieces) == 0:
         return
-    if first_flag and len(solutions) > 0:
+    if first_flag and len(solutions) > 1:
         return
     for i in range(len(curr)):
         row = curr[i]
@@ -278,6 +279,7 @@ flip_flag = False
 first_flag = False
 board_symmetry = []
 
+# entry point
 def main(filename, rotates, flips, first):
     global rotate_flag, flip_flag, first_flag
     rotate_flag = True if rotates == "true" else False
@@ -304,5 +306,6 @@ def main(filename, rotates, flips, first):
     if rotate_board:
         solutions = [rotate(rotate(rotate(s))) for s in solutions]
     end = timeit.default_timer()
-    
     return solutions, (end-start), len(pieces)
+
+

@@ -4,9 +4,8 @@
     <form id="solve">
         <select id="files">
         </select>
-        <button type="submit"> Solve</button>
+        <button type="submit"> View </button>
     </form>
-    <div id="status">
     </div>
     <canvas id="canvas" width="1000" height="500">
     </canvas>
@@ -16,8 +15,6 @@
         <span id="num">
         </span>
         <button id="next">Next</button>
-        <div id="time">Time Elapsed: </div>
-        <div id="msg"> </div>
     </div>
 </div>
 </body>
@@ -25,10 +22,10 @@
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script src="/static/randomColor.js"></script>
 <script>
-    $("#status").text("Idle");
     $("#num").text("0/0");
     var randomColorMap = {};
     var index = 0;
+    var file_solutions_map = {};
     var solutions = null;
     var numPieces = 0;
     $("#prev").click(function (e) {
@@ -84,8 +81,9 @@
             $("#msg").text("Not all pieces used");
     }
     // load files for dropdown menu
-    $.ajax({url:'/files', success:function(res) {
+    $.ajax({url:'/solutions', success:function(res) {
             var select = $("#files")
+            file_solutions_map = res
             $.each(res, function(k,v) {
                 select.append($("<option></option>")
                     .attr("value", k)
@@ -93,40 +91,22 @@
             });
         }
     });
-    // make request to server to solve
+    // load solutions
     $("#solve").submit(function(e) {
         e.preventDefault();
-        $("#status").text("Solving");
-        data = {
-            file: $("#files").val(),
-            rotate: $("#rotate").prop('checked'),
-            flip: $("#flip").prop('checked'),
-            first: $("#first").prop('checked'),
+        clearCanvas();
+        var file_name = $("#files").val();
+        
+        solutions = file_solutions_map[file_name];
+        console.log(solutions);
+        if (solutions.length > 0) {
+            index = 0;
+            drawSolution(solutions[0], numPieces);
+            $("#num").text((index+1) + "/" + solutions.length);
         }
-        $.ajax({
-            type: "POST",
-            url:'/solve',
-            data: data,
-            success: function(res) {
-                clearCanvas();
-                solutions = res[0];
-                timeToSolve = res[1];
-                numPieces = res[2];
-                if (!solutions) {
-                    $("#num").text("Invalid Input");   
-                } 
-                else if (solutions.length > 0) {
-                    index = 0;
-                    drawSolution(solutions[0], numPieces);
-                    $("#num").text((index+1) + "/" + solutions.length);
-                }
-                else {
-                    $("#num").text("No solutions found");   
-                }
-                $("#status").text("Idle");
-                $("#time").text("Time Elapsed: " + res[1]);                
-            }
-        })
+        else {
+            $("#num").text("No solutions found");   
+        }
     });
 </script>
 
